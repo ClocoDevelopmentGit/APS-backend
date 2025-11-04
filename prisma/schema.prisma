@@ -1,0 +1,249 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// TERM MODEL
+// ============================================
+model Term {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(100)
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?  @db.VarChar(255)
+  updatedBy String?  @db.VarChar(255)
+
+  // Relations
+  classes Class[]
+
+  @@index([isActive])
+  @@index([startDate, endDate])
+}
+
+// ============================================
+// LOCATION MODEL (NEW)
+// ============================================
+model Location {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(200)
+  addressLine1 String   @db.VarChar(500)
+  addressLine2 String?  @db.VarChar(500)
+  suburb       String   @db.VarChar(200)
+  city         String   @db.VarChar(200)
+  state        String   @db.VarChar(100)
+  country      String   @default("Australia") @db.VarChar(100)
+  postcode     String?  @db.VarChar(20)
+  rooms        String[] @db.VarChar(100)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdBy    String?  @db.VarChar(255)
+  updatedBy    String?  @db.VarChar(255)
+
+  // Relations
+  classes Class[]
+  events  Event[]
+
+  @@index([isActive])
+}
+
+// ============================================
+// Course CATEGORY MODEL (NEW)
+// ============================================
+model CourseCategory {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  ageRange    String?  @db.VarChar(50)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?  @db.VarChar(255)
+  updatedBy   String?  @db.VarChar(255)
+
+  // Relations
+  class Course[]
+
+  @@index([isActive])
+}
+
+// ============================================
+// Course MODEL (UPDATED)
+// ============================================
+model Course {
+  id               String   @id @default(uuid())
+  title            String   @db.VarChar(255)
+  description      String?  @db.Text
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  createdBy        String?  @db.VarChar(255)
+  updatedBy        String?  @db.VarChar(255)
+  courseCategoryId String   @default(uuid())
+
+  // Relations
+  classes        Class[]
+  CourseCategory CourseCategory @relation(fields: [courseCategoryId], references: [id])
+
+  @@index([id])
+}
+
+// ============================================
+// Class MODEL (UPDATED)
+// ============================================
+model Class {
+  id             String   @id @default(uuid())
+  courseId       String   @default(uuid())
+  termId         String   @default(uuid())
+  locationId     String?  @default(uuid())
+  tutorId        String   @default(uuid())
+  day            String   @db.VarChar(20)
+  startDate      DateTime @db.Date
+  endDate        DateTime @db.Date
+  startTime      DateTime @db.Time
+  endTime        DateTime @db.Time
+  timezone       String   @default("Australia/Melbourne") @db.VarChar(50)
+  room           String?  @db.VarChar(100)
+  notes          String?  @db.Text
+  availableSeats Int?
+  status         String   @db.VarChar(20)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdBy      String?  @db.VarChar(255)
+  updatedBy      String?  @db.VarChar(255)
+
+  // Relations
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  term     Term      @relation(fields: [termId], references: [id], onDelete: Restrict)
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  fees     Fee[]
+  tutor    User      @relation(fields: [tutorId], references: [id])
+
+  @@index([courseId])
+  @@index([termId])
+  @@index([locationId])
+  @@index([day])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([status])
+  @@index([isActive])
+}
+
+// ============================================
+// FEE MODEL
+// ============================================
+model Fee {
+  id        String   @id @default(uuid())
+  termFee   Decimal  @db.Decimal(10, 2)
+  yearlyFee Decimal  @db.Decimal(10, 2)
+  classId   String   @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?  @db.VarChar(255)
+  updatedBy String?  @db.VarChar(255)
+
+  // Relations
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
+}
+
+// ============================================
+// EVENT MODEL (NEW)
+// ============================================
+model Event {
+  id             String   @id @default(uuid())
+  locationId     String?  @default(uuid())
+  title          String   @db.VarChar(255)
+  description    String?  @db.Text
+  canEnroll      Boolean  @default(true)
+  startDate      DateTime @db.Date
+  endDate        DateTime @db.Date
+  startTime      DateTime @db.Time
+  endTime        DateTime @db.Time
+  timezone       String   @default("Australia/Melbourne") @db.VarChar(50)
+  room           String?  @db.VarChar(100)
+  notes          String?  @db.Text
+  availableSeats Int?
+  status         String   @db.VarChar(20)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdBy      String?  @db.VarChar(255)
+  updatedBy      String?  @db.VarChar(255)
+  fees           Float
+
+  // Relations
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  @@index([locationId])
+  @@index([canEnroll])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([status])
+  @@index([isActive])
+}
+
+model User {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  firstName      String    @db.VarChar(255)
+  lastName       String    @db.VarChar(255)
+  email          String    @unique @db.VarChar(255)
+  phone          String?   @db.VarChar(20)
+  dob            DateTime? @db.Date
+  gender         Gender
+  details        String?   @db.Text
+  specialNeeds   Boolean
+  password       String    @db.VarChar(255)
+  roleId         String
+  specialization String[]
+  guardianId     String?   @default(uuid())
+  photoPath      String?   @db.VarChar(500)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  createdBy      String?   @db.VarChar(255)
+  updatedBy      String?   @db.VarChar(255)
+
+  // Relations
+  role          Role    @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  guardian      User?   @relation("UserGuardian", fields: [guardianId], references: [id], onDelete: SetNull)
+  dependents    User[]  @relation("UserGuardian")
+  taughtClasses Class[]
+
+  @@index([email])
+  @@index([roleId])
+  @@index([guardianId])
+  @@index([isActive])
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  permissions Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?  @db.VarChar(255)
+  updatedBy   String?  @db.VarChar(255)
+  users       User[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+enum Gender {
+  Male
+  Female
+}
