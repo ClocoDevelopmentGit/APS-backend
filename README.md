@@ -1,7 +1,7 @@
 # APS-backend
 
 See detailed documentation in the [readme folder](./readme/).
-Express.js backend for the Academic Program System (APS) with Prisma ORM and PostgreSQL.
+Express.js backend for the Acting Performance Studio (APS) with Prisma ORM and PostgreSQL.
 
 ## Documentation
 
