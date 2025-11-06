@@ -5,10 +5,10 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "nodemon index.js",
-     "dev": "set NODE_ENV=development&&nodemon index.js",
+    "start": "nodemon server.js",
+    "dev": "set NODE_ENV=development&&nodemon server.js",
     "prod": "set NODE_ENV=production&&nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prisma:generate": "prisma generate",
@@ -16,12 +16,20 @@
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.17.3",
     "@prisma/client": "^6.18.0",
     "axios": "^1.12.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
   },
   "devDependencies": {
+    "@types/body-parser": "^1.19.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
     "nodemon": "^3.1.10",
     "prisma": "^6.18.0"
   }

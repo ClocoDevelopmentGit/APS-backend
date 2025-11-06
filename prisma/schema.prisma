@@ -243,6 +243,23 @@ model Role {
   @@index([isActive])
 }
 
+model Banner {
+  id              String  @id @default(uuid())
+  order           Int
+  mediaUrl        String
+  mediaType       String
+  title           String
+  subtitle        String?
+  button1Text     String?
+  button1Link     String?
+  button2Text     String?
+  button2Link     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?  @db.VarChar(255)
+  updatedBy       String?  @db.VarChar(255)
+}
+
 enum Gender {
   Male
   Female
