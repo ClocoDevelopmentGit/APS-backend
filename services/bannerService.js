@@ -13,6 +13,7 @@ export const createBanner = async (data) => {
       button2Text,
       button2Link,
       createdBy,
+      order,
     } = data;
 
     if (!title || !mediaType || !mediaUrl) {
@@ -33,25 +34,26 @@ export const createBanner = async (data) => {
         button2Text,
         button2Link,
         createdBy,
+        order,
       },
     });
 
     return { success: true, banner };
-  } catch {
-    return { success: false, message: "Failed to create banner" };
+  } catch (error) {
+    return { success: false, message: "Failed to create banner", error };
   }
 };
 
 export const getAllBanners = async () => {
   try {
-    const banner = await prisma.banner.findMany({ orderBy: { title: "asc" } });
+    const banner = await prisma.banner.findMany({ orderBy: { order: "asc" } });
     if (!banner || banner.length === 0) {
       return { success: false, message: "No banners found" };
     }
 
     return { success: true, banner };
-  } catch {
-    return { success: false, message: "Failed to fetch banners" };
+  } catch (error) {
+    return { success: false, message: "Failed to fetch banners", error };
   }
 };
 
@@ -67,8 +69,8 @@ export const getBannerById = async (id) => {
     }
 
     return { success: true, banner };
-  } catch {
-    return { success: false, message: "Failed to fetch banner" };
+  } catch (error) {
+    return { success: false, message: "Failed to fetch banner", error };
   }
 };
 
@@ -88,6 +90,7 @@ export const updateBanner = async (id, data) => {
       button2Text,
       button2Link,
       updatedBy,
+      order,
     } = data;
 
     if (!title || !mediaType || !mediaUrl) {
@@ -109,12 +112,13 @@ export const updateBanner = async (id, data) => {
         button2Text,
         button2Link,
         updatedBy,
+        order,
       },
     });
 
     return { success: true, banner };
-  } catch {
-    return { success: false, message: "Failed to update banner" };
+  } catch (error) {
+    return { success: false, message: "Failed to update banner", error };
   }
 };
 
@@ -131,7 +135,7 @@ export const deleteBanner = async (id) => {
 
     await prisma.banner.delete({ where: { id } });
     return { success: true, message: "Banner deleted successfully" };
-  } catch {
-    return { success: false, message: "Failed to delete banner" };
+  } catch (error) {
+    return { success: false, message: "Failed to delete banner".error };
   }
 };

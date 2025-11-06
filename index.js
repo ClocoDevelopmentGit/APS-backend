@@ -1,11 +1,9 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import bannerRoutes from "./routes/bannerRoutes.js";
 import cookieParser from "cookie-parser";
-
+import bannerRoutes from "./routes/bannerRoute.js";
 const app = express();
-const PORT = process.env.PORT || 9000;
 
 app.use(
   cors({
@@ -21,6 +19,4 @@ app.use(bodyParser.json());
 
 app.use("/api/banner", bannerRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+export default app;

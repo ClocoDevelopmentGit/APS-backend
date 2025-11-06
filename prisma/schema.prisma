@@ -245,6 +245,7 @@ model Role {
 
 model Banner {
   id              String  @id @default(uuid())
+  order           Int
   mediaUrl        String
   mediaType       String
   title           String
