@@ -16,10 +16,10 @@ const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if ([".png", ".jpg", ".jpeg", ".webp"].includes(ext)) {
+    if ([".png", ".jpg", ".jpeg", ".webp", ".mp4", ".mkv"].includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error("Only images are allowed"), false);
+      cb(new Error("Only images and videos are allowed"), false);
     }
   },
 });
