@@ -29,7 +29,7 @@ model Term {
 }
 
 // ============================================
-// LOCATION MODEL (NEW)
+// LOCATION MODEL (UPDATED)
 // ============================================
 model Location {
   id           String   @id @default(uuid())
@@ -41,7 +41,8 @@ model Location {
   state        String   @db.VarChar(100)
   country      String   @default("Australia") @db.VarChar(100)
   postcode     String?  @db.VarChar(20)
-  rooms        String[] @db.VarChar(100)
+  rooms        String[] @db.VarChar(100)    // non-nullable array (must be provided)
+  notes        String?   @db.Text @default("")           
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -56,7 +57,7 @@ model Location {
 }
 
 // ============================================
-// Course CATEGORY MODEL (NEW)
+// Course CATEGORY MODEL (NEW / FIXED)
 // ============================================
 model CourseCategory {
   id          String   @id @default(uuid())
@@ -70,7 +71,7 @@ model CourseCategory {
   updatedBy   String?  @db.VarChar(255)
 
   // Relations
-  class Course[]
+  courses Course[]
 
   @@index([isActive])
 }
@@ -87,11 +88,11 @@ model Course {
   updatedAt        DateTime @updatedAt
   createdBy        String?  @db.VarChar(255)
   updatedBy        String?  @db.VarChar(255)
-  courseCategoryId String   @default(uuid())
+  courseCategoryId String   // removed default — must be set explicitly
 
   // Relations
   classes        Class[]
-  CourseCategory CourseCategory @relation(fields: [courseCategoryId], references: [id])
+  courseCategory CourseCategory @relation(fields: [courseCategoryId], references: [id])
 
   @@index([id])
 }
@@ -101,20 +102,19 @@ model Course {
 // ============================================
 model Class {
   id             String   @id @default(uuid())
-  courseId       String   @default(uuid())
-  termId         String   @default(uuid())
-  locationId     String?  @default(uuid())
-  tutorId        String   @default(uuid())
+  courseId       String   // removed default — must be set explicitly
+  termId         String   // removed default
+  locationId     String   // made NON-NULLABLE and removed default
+  tutorId        String   // removed default
   day            String   @db.VarChar(20)
   startDate      DateTime @db.Date
   endDate        DateTime @db.Date
   startTime      DateTime @db.Time
   endTime        DateTime @db.Time
   timezone       String   @default("Australia/Melbourne") @db.VarChar(50)
-  room           String?  @db.VarChar(100)
+  room           String  @db.VarChar(100)
   notes          String?  @db.Text
-  availableSeats Int?
-  status         String   @db.VarChar(20)
+  availableSeats Int
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -122,11 +122,11 @@ model Class {
   updatedBy      String?  @db.VarChar(255)
 
   // Relations
-  course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Restrict)
   term     Term      @relation(fields: [termId], references: [id], onDelete: Restrict)
-  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  location Location  @relation(fields: [locationId], references: [id], onDelete: Restrict)
   fees     Fee[]
-  tutor    User      @relation(fields: [tutorId], references: [id])
+  tutor    User      @relation(fields: [tutorId], references: [id], onDelete: Restrict)
 
   @@index([courseId])
   @@index([termId])
@@ -134,7 +134,6 @@ model Class {
   @@index([day])
   @@index([startDate])
   @@index([endDate])
-  @@index([status])
   @@index([isActive])
 }
 
@@ -145,7 +144,7 @@ model Fee {
   id        String   @id @default(uuid())
   termFee   Decimal  @db.Decimal(10, 2)
   yearlyFee Decimal  @db.Decimal(10, 2)
-  classId   String   @default(uuid())
+  classId   String   // removed default
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdBy String?  @db.VarChar(255)
@@ -158,23 +157,22 @@ model Fee {
 }
 
 // ============================================
-// EVENT MODEL (NEW)
+// EVENT MODEL (UPDATED)
 // ============================================
 model Event {
   id             String   @id @default(uuid())
-  locationId     String?  @default(uuid())
+  locationId     String   // made NON-NULLABLE and removed default
   title          String   @db.VarChar(255)
   description    String?  @db.Text
-  canEnroll      Boolean  @default(true)
+  canEnroll      Boolean  @default(false) // default changed to false
   startDate      DateTime @db.Date
   endDate        DateTime @db.Date
   startTime      DateTime @db.Time
   endTime        DateTime @db.Time
   timezone       String   @default("Australia/Melbourne") @db.VarChar(50)
-  room           String?  @db.VarChar(100)
+  room           String  @db.VarChar(100)
   notes          String?  @db.Text
-  availableSeats Int?
-  status         String   @db.VarChar(20)
+  availableSeats Int
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -183,31 +181,33 @@ model Event {
   fees           Float
 
   // Relations
-  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
   @@index([locationId])
   @@index([canEnroll])
   @@index([startDate])
   @@index([endDate])
-  @@index([status])
   @@index([isActive])
 }
 
+// ============================================
+// USER MODEL (UPDATED)
+// ============================================
 model User {
   id             String    @id @default(uuid())
   userId         String    @unique
   firstName      String    @db.VarChar(255)
   lastName       String    @db.VarChar(255)
   email          String    @unique @db.VarChar(255)
-  phone          String?   @db.VarChar(20)
-  dob            DateTime? @db.Date
+  phone          String    @db.VarChar(20)   
+  dob            DateTime  @db.Date         
   gender         Gender
   details        String?   @db.Text
   specialNeeds   Boolean
   password       String    @db.VarChar(255)
-  roleId         String
+  role           UserRole  // use enum field (removed roleId string FK)
   specialization String[]
-  guardianId     String?   @default(uuid())
+  guardianId     String?                       // removed default; optional (NULL when no guardian)
   photoPath      String?   @db.VarChar(500)
   isActive       Boolean   @default(true)
   createdAt      DateTime  @default(now())
@@ -216,33 +216,15 @@ model User {
   updatedBy      String?   @db.VarChar(255)
 
   // Relations
-  role          Role    @relation(fields: [roleId], references: [id], onDelete: Restrict)
   guardian      User?   @relation("UserGuardian", fields: [guardianId], references: [id], onDelete: SetNull)
   dependents    User[]  @relation("UserGuardian")
   taughtClasses Class[]
 
   @@index([email])
-  @@index([roleId])
   @@index([guardianId])
   @@index([isActive])
+  @@index([role])
 }
-
-model Role {
-  id          String   @id @default(uuid())
-  name        String   @unique @db.VarChar(100)
-  description String?  @db.Text
-  permissions Json?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   String?  @db.VarChar(255)
-  updatedBy   String?  @db.VarChar(255)
-  users       User[]
-
-  @@index([name])
-  @@index([isActive])
-}
-
 model Banner {
   id              String  @id @default(uuid())
   order           Int
@@ -264,3 +246,12 @@ enum Gender {
   Male
   Female
 }
+
+enum UserRole {
+  Admin
+  Tutor
+  Student
+  Parent
+}
+
+
