@@ -14,7 +14,7 @@ export const createBannerController = async (req, res) => {
 
     if (req.file) {
       const filename = req.file.originalname;
-      logoPath = `banners/${title}/${filename}`;
+      logoPath = `banners/${filename}`;
       const gcsFile = bucket.file(logoPath);
 
       await gcsFile.save(req.file.buffer, {
@@ -40,7 +40,7 @@ export const createBannerController = async (req, res) => {
 export const getAllBannersController = async (req, res) => {
   try {
     const result = await getAllBanners();
-    if (!result.success) return res.status(404).json(result);
+    if (!result.success) return res.status(400).json(result);
     res.status(200).json(result);
   } catch (error) {
     console.log(error);
@@ -66,7 +66,7 @@ export const updateBannerController = async (req, res) => {
 
     if (req.file) {
       const filename = req.file.originalname;
-      logoPath = `banners/${title}/${filename}`;
+      logoPath = `banners/${filename}`;
       const gcsFile = bucket.file(logoPath);
 
       await gcsFile.save(req.file.buffer, {
