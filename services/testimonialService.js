@@ -25,7 +25,10 @@ export const getGooglePlaceDetails = async () => {
       ...result,
       reviews: result.reviews
         ?.filter((r) => r.text?.text?.trim() !== "")
-        .map((r) => ({
+        ?.sort(
+          (a, b) => new Date(b.publishTime || 0) - new Date(a.publishTime || 0)
+        )
+        ?.map((r) => ({
           author: r.authorAttribution?.displayName,
           text: r.text.text,
         })),
