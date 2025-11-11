@@ -4,6 +4,6 @@ import { fetchPlaceDetails } from "../controllers/testimonialController.js";
 
 const router = express.Router();
 
-router.get("/", fetchPlaceDetails);
+router.get("/get", fetchPlaceDetails);
 
 export default router;
