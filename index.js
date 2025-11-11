@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import bannerRoutes from "./routes/bannerRoute.js";
 import testimonialRoutes from "./routes/testimonialRoute.js";
+import "./cron/testimonialCron.js";
 const app = express();
 
 app.use(
