@@ -278,6 +278,10 @@ export const loginUser = async (email, password, req, res) => {
     throw new AppError('Invalid credentials', 401);
   }
 
+  if(user.guardianId) {
+    throw new AppError('Please login using guardian account', 403);
+  }
+
   const isValidPassword = await bcrypt.compare(password, user.password);
 
   if (!isValidPassword) {
