@@ -238,7 +238,7 @@ export const registerUser = async (usersData, res) => {
           gender: childData.gender || null,
           details: childData.details || null,
           specialNeeds: childData.specialNeeds === true || childData.specialNeeds === false ? childData.specialNeeds : false,
-          password: childHashedPassword,
+          password: parentHashedPassword,
           role: 'Student',
           specialization: childData.specialization || [],
           guardianId: parent.id, // Link to parent
