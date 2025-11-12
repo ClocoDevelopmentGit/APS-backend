@@ -1,5 +1,4 @@
 // controllers/userController.js
-import jwt from 'jsonwebtoken';
 import {
   adminCreateUser as createUserService,
   registerUser as registerUserService,
@@ -8,27 +7,32 @@ import {
   getUserById,
   updateUser,
   deactivateUser,
-  setAuthCookie,
   clearAuthCookie,
 } from '../services/userService.js';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export const registerController = async (req, res) => {
+// Register Controller - Handles both parent-child and adult student registration
+export const registerController = async (req, res, next) => {
   try {
-    const user = await registerUserService(req.body);
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
-
-    setAuthCookie(res, user, token);
-
+    const { users, primaryUser } = await registerUserService(req.body, res);
+    
     res.status(201).json({
-      message: 'User registered successfully.',
-      user: {
+      success: true,
+      message: 'Registration successful.',
+      primaryUser: {
+        id: primaryUser.id,
+        userId: primaryUser.userId,
+        firstName: primaryUser.firstName,
+        lastName: primaryUser.lastName,
+        email: primaryUser.email,
+        role: primaryUser.role,
+        guardianId: primaryUser.guardianId,
+        isActive: primaryUser.isActive,
+      },
+      totalUsersCreated: users.length,
+      users: users.map(user => ({
         id: user.id,
         userId: user.userId,
         firstName: user.firstName,
@@ -37,17 +41,20 @@ export const registerController = async (req, res) => {
         role: user.role,
         guardianId: user.guardianId,
         isActive: user.isActive,
-      },
+      })),
     });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    next(error);
   }
 };
 
-export const adminCreateUserController = async (req, res) => {
+// Admin Create User Controller
+export const adminCreateUserController = async (req, res, next) => {
   try {
-    const user = await createUserService(req.body);
+    const user = await createUserService(req.body, req, res);
+    
     res.status(201).json({
+      success: true,
       message: 'User created successfully by admin.',
       user: {
         id: user.id,
@@ -58,27 +65,23 @@ export const adminCreateUserController = async (req, res) => {
         role: user.role,
         guardianId: user.guardianId,
         isActive: user.isActive,
+        createdBy: user.createdBy,
+        updatedBy: user.updatedBy,
       },
     });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    next(error);
   }
 };
 
-export const loginController = async (req, res) => {
+// Login Controller
+export const loginController = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const user = await loginUserService(email, password);
+    const user = await loginUserService(email, password, req, res);
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
-
-    setAuthCookie(res, user, token);
-
-    res.json({
+    res.status(200).json({
+      success: true,
       message: 'Login successful.',
       user: {
         id: user.id,
@@ -89,65 +92,86 @@ export const loginController = async (req, res) => {
         role: user.role,
         guardianId: user.guardianId,
         isActive: user.isActive,
+        createdBy: user.createdBy || null,
+        updatedBy: user.updatedBy || null,
       },
     });
   } catch (error) {
-    res.status(401).json({ message: error.message });
+    next(error);
   }
 };
 
-export const getAllUsersController = async (req, res) => {
+// Get All Users Controller
+export const getAllUsersController = async (req, res, next) => {
   try {
     const users = await getAllUsers();
-    res.json(users);
+    
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      users: users,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const getParticularUserController = async (req, res) => {
+// Get Particular User Controller
+export const getParticularUserController = async (req, res, next) => {
   try {
     const { id } = req.params;
     const user = await getUserById(id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
-    }
-    res.json(user);
+
+    res.status(200).json({
+      success: true,
+      user: user,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const updateUserProfileController = async (req, res) => {
+// Update User Profile Controller
+export const updateUserProfileController = async (req, res, next) => {
   try {
     const { id } = req.params;
     const updatedUser = await updateUser(id, req.body);
-    res.json({
+
+    res.status(200).json({
+      success: true,
       message: 'User updated successfully.',
       user: updatedUser,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-// Admin deactivates user instead of deleting
-export const deactivateUserProfileController = async (req, res) => {
+// Deactivate User Profile Controller
+export const deactivateUserProfileController = async (req, res, next) => {
   try {
     const { id } = req.params;
     await deactivateUser(id);
-    res.json({ message: 'User deactivated successfully.' });
+
+    res.status(200).json({
+      success: true,
+      message: 'User deactivated successfully.',
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    next(error);
   }
 };
 
-export const logoutController = async (req, res) => {
+// Logout Controller
+export const logoutController = async (req, res, next) => {
   try {
     await clearAuthCookie(res, prisma, req.user.id);
-    res.json({ message: 'Logged out successfully.' });
+    
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully.',
+    });
   } catch (error) {
-    console.error('Logout error:', error);
-    res.status(500).json({ message: 'Logout failed.' });
+    next(error);
   }
 };
