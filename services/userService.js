@@ -275,7 +275,7 @@ export const loginUser = async (email, password, req, res) => {
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user) {
-    throw new AppError('Invalid credentials', 401);
+    throw new AppError('User not found', 404);
   }
 
   if(user.guardianId) {
@@ -456,19 +456,14 @@ export const updateUser = async (id, updateData) => {
     throw new AppError('User not found', 404);
   }
 
-  // If email is being updated, check if it's already taken
+  // Prevent email updates
   if (updateData.email && updateData.email !== existingUser.email) {
-    const emailExists = await prisma.user.findUnique({
-      where: { email: updateData.email },
-    });
-    if (emailExists) {
-      throw new AppError('Email already exists', 409);
-    }
+    throw new AppError('Email cannot be changed', 400);
   }
 
-  const { password, ...rest } = updateData;
+  const { password, email, ...rest } = updateData; 
 
-  let hashedPassword = undefined;
+  let hashedPassword;
   if (password) {
     hashedPassword = await bcrypt.hash(password, 10);
   }
@@ -478,9 +473,11 @@ export const updateUser = async (id, updateData) => {
     data: {
       ...rest,
       ...(hashedPassword && { password: hashedPassword }),
+      // email is intentionally excluded
     },
   });
 };
+
 
 // Deactivate user (Admin only)
 export const deactivateUser = async (id) => {
