@@ -1,9 +1,17 @@
 // services/userService.js
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-import { calculateAge, getCookieNameByRole } from '../helpers/helper.js';
 import jwt from 'jsonwebtoken';
 import { AppError } from '../middlewares/errorMiddleware.js';
+import {
+  calculateAge,
+  getCookieNameByRole,
+  parseDate,
+  validateRequiredFields,
+  hashPassword,
+  comparePassword,
+  validateArrayInput,
+  generateNextUserId,
+} from '../helpers/helper.js';
 
 const prisma = new PrismaClient();
 
@@ -21,8 +29,8 @@ export const setAuthCookie = (res, user, token) => {
 };
 
 // Clear auth cookie
-export const clearAuthCookie = async (res, prismaClient, userId) => {
-  const user = await prismaClient.user.findUnique({ where: { id: userId } });
+export const clearAuthCookie = async (res, prisma, userId) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new AppError('User not found', 404);
 
   const COOKIE_OPTIONS = {
@@ -35,234 +43,138 @@ export const clearAuthCookie = async (res, prismaClient, userId) => {
   res.clearCookie(cookieName, COOKIE_OPTIONS);
 };
 
-// Register user(s) - Supports both parent-child and  student registration
-export const registerUser = async (usersData, res) => {
-  // Validate input is an array
-  if (!Array.isArray(usersData) || usersData.length === 0) {
-    throw new AppError('Invalid registration data. Expected an array of users.', 400);
+// Check if email already exists
+const checkEmailExists = async (email, errorMessage = 'Email already exists') => {
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    throw new AppError(errorMessage, 409);
   }
+};
 
-  let registeredUsers = [];
+// Helper to create user data object
+const buildUserData = (userData, role, guardianId, hashedPassword, generatedUserId, createdBy = null, updatedBy = null) => ({
+  userId: generatedUserId,
+  firstName: userData.firstName,
+  lastName: userData.lastName,
+  email: userData.email,
+  phone: userData.phone || null,
+  dob: userData.dob || null,
+  gender: userData.gender || null,
+  details: userData.details || null,
+  specialNeeds: userData.specialNeeds === true || userData.specialNeeds === false 
+    ? userData.specialNeeds 
+    : false,
+  password: hashedPassword,
+  role,
+  specialization: userData.specialization || [],
+  guardianId,
+  photoPath: userData.photoPath || null,
+  isActive: true,
+  createdBy,
+  updatedBy,
+});
 
-  // CASE 1: Single user registration (Student without guardian)
-  if (usersData.length === 1) {
-    const userData = usersData[0];
+// Register user(s) - Supports both parent-child and student registration
+export const registerUser = async (usersData, res) => {
+  // Validate input is an array with at least one user
+  validateArrayInput(usersData, 1, 'Invalid registration data. Expected at least one user.');
+
+  const registeredUsers = [];
+  let primaryUser = null;
+  let parentId = null;
+
+  // Determine registration type
+  const isParentChildRegistration = usersData.length > 1;
+
+  // Process each user in the array
+  for (let i = 0; i < usersData.length; i++) {
+    const userData = usersData[i];
+    const isFirstUser = i === 0;
     
-    // Required fields validation
-    if (!userData.userId || !userData.firstName || !userData.lastName || 
-        !userData.email || !userData.password || !userData.dob) {
-      throw new AppError(
-        'Required fields are missing: userId, firstName, lastName, email, password, dob', 
-        400
-      );
+    // Determine user context for error messages
+    const userContext = isParentChildRegistration 
+      ? (isFirstUser ? 'Parent' : `Child ${i}`)
+      : '';
+    
+    // Determine role: Parent (if first in multi-user), otherwise Student
+    const role = isParentChildRegistration && isFirstUser ? 'Parent' : 'Student';
+    
+    // Build required fields list
+    const requiredFields = ['firstName', 'lastName', 'email', 'password'];
+    
+    // DOB is required for single user registration (to verify age 18+)
+    if (!isParentChildRegistration) {
+      requiredFields.push('dob');
     }
+    
+    // Validate required fields
+    validateRequiredFields(userData, requiredFields, userContext);
 
     // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: userData.email },
-    });
+    const emailErrorMessage = isParentChildRegistration && isFirstUser
+      ? 'Parent account already exists. Try to login.'
+      : isParentChildRegistration
+        ? `Email already exists for child ${i}: ${userData.email}`
+        : 'Email already exists. Try to login.';
+    
+    await checkEmailExists(userData.email, emailErrorMessage);
 
-    if (existingUser) {
-      throw new AppError('Email already exists. Try to login.', 409);
+    // Parse and validate DOB if provided
+    let dobDate = null;
+    if (userData.dob) {
+      const dobFieldName = userContext ? `${userContext.toLowerCase()} dob` : 'dob';
+      dobDate = parseDate(userData.dob, dobFieldName);
     }
 
-    // Validate and parse DOB
-    if (!/^\d{2}-\d{2}-\d{4}$/.test(userData.dob)) {
-      throw new AppError('Invalid date format. Use dd-MM-YYYY for dob.', 400);
-    }
-    
-    const [day, month, year] = userData.dob.split('-');
-    const dobDate = new Date(`${year}-${month}-${day}`);
-    
-    if (isNaN(dobDate.getTime())) {
-      throw new AppError('Invalid date value for dob.', 400);
-    }
-
-    // Calculate age and check if adult (18+)
-    const age = calculateAge(dobDate);
-    
-    if (age < 18) {
-      throw new AppError(
-        'You need a guardian to proceed. Age must be 18 or above for independent registration.', 
-        403
-      );
+    // For single user registration, verify age is 18+
+    if (!isParentChildRegistration && dobDate) {
+      const age = calculateAge(dobDate);
+      if (age < 18) {
+        throw new AppError(
+          'You need a guardian to proceed. Age must be 18 or above for independent registration.',
+          403
+        );
+      }
     }
 
-    // Create student with age 18+
-    const hashedPassword = await bcrypt.hash(userData.password, 10);
-    
+    // Generate userId automatically
+    const generatedUserId = await generateNextUserId(prisma);
+
+    // Hash password
+    const hashedPassword = await hashPassword(userData.password);
+
+    // Create user with appropriate role and guardianId
     const newUser = await prisma.user.create({
-      data: {
-        userId: userData.userId,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        email: userData.email,
-        phone: userData.phone || null,
-        dob: dobDate,
-        gender: userData.gender || null,
-        details: userData.details || null,
-        specialNeeds: userData.specialNeeds === true || userData.specialNeeds === false ? userData.specialNeeds : false,
-        password: hashedPassword,
-        role: 'Student',
-        specialization: userData.specialization || [],
-        guardianId: null, // No guardian for adult student
-        photoPath: userData.photoPath || null,
-        isActive: true,
-        createdBy: null,
-        updatedBy: null,
-      },
+      data: buildUserData(
+        { ...userData, dob: dobDate },
+        role,
+        isFirstUser ? null : parentId,
+        hashedPassword,
+        generatedUserId
+      ),
     });
 
     registeredUsers.push(newUser);
 
-    // Generate JWT token for the adult student
-    const token = jwt.sign(
-      { id: newUser.id, email: newUser.email, role: newUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
-
-    setAuthCookie(res, newUser, token);
-
-    return { users: registeredUsers, primaryUser: newUser };
+    // Set primary user (first user) and capture parent ID for children
+    if (isFirstUser) {
+      primaryUser = newUser;
+      if (isParentChildRegistration) {
+        parentId = newUser.id;
+      }
+    }
   }
 
-  // CASE 2: Parent with children registration (Array length > 1)
-  if (usersData.length > 1) {
-    const parentData = usersData[0]; // First element is parent
-    
-    // Validate parent required fields
-    if (!parentData.userId || !parentData.firstName || !parentData.lastName || 
-        !parentData.email || !parentData.password) {
-      throw new AppError(
-        'Parent required fields are missing: userId, firstName, lastName, email, password', 
-        400
-      );
-    }
+  // Generate JWT token for the primary user (parent or adult student)
+  const token = jwt.sign(
+    { id: primaryUser.id, email: primaryUser.email, role: primaryUser.role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN }
+  );
 
-    // Check if parent already exists
-    const existingParent = await prisma.user.findUnique({
-      where: { email: parentData.email },
-    });
+  setAuthCookie(res, primaryUser, token);
 
-    if (existingParent) {
-      throw new AppError('Parent account already exists. Try to login.', 409);
-    }
-
-    // Validate parent DOB if provided
-    let parentDobDate = null;
-    if (parentData.dob) {
-      if (!/^\d{2}-\d{2}-\d{4}$/.test(parentData.dob)) {
-        throw new AppError('Invalid date format for parent. Use dd-MM-YYYY for dob.', 400);
-      }
-      const [day, month, year] = parentData.dob.split('-');
-      parentDobDate = new Date(`${year}-${month}-${day}`);
-      if (isNaN(parentDobDate.getTime())) {
-        throw new AppError('Invalid date value for parent dob.', 400);
-      }
-    }
-
-    // Create parent with role "Parent"
-    const parentHashedPassword = await bcrypt.hash(parentData.password, 10);
-    
-    const parent = await prisma.user.create({
-      data: {
-        userId: parentData.userId,
-        firstName: parentData.firstName,
-        lastName: parentData.lastName,
-        email: parentData.email,
-        phone: parentData.phone || null,
-        dob: parentDobDate,
-        gender: parentData.gender || null,
-        details: parentData.details || null,
-        specialNeeds: parentData.specialNeeds === true || parentData.specialNeeds === false ? parentData.specialNeeds : false,
-        password: parentHashedPassword,
-        role: 'Parent',
-        specialization: parentData.specialization || [],
-        guardianId: null,
-        photoPath: parentData.photoPath || null,
-        isActive: true,
-        createdBy: null,
-        updatedBy: null,
-      },
-    });
-
-    registeredUsers.push(parent);
-
-    // Create children (remaining elements in array)
-    for (let i = 1; i < usersData.length; i++) {
-      const childData = usersData[i];
-      
-      // Validate child required fields
-      if (!childData.userId || !childData.firstName || !childData.lastName || 
-          !childData.email || !childData.password) {
-        throw new AppError(
-          `Child ${i} required fields are missing: userId, firstName, lastName, email, password`, 
-          400
-        );
-      }
-
-      // Check if child email already exists
-      const existingChild = await prisma.user.findUnique({
-        where: { email: childData.email },
-      });
-
-      if (existingChild) {
-        throw new AppError(`Email already exists for child ${i}: ${childData.email}`, 409);
-      }
-
-      // Validate child DOB if provided
-      let childDobDate = null;
-      if (childData.dob) {
-        if (!/^\d{2}-\d{2}-\d{4}$/.test(childData.dob)) {
-          throw new AppError(`Invalid date format for child ${i}. Use dd-MM-YYYY for dob.`, 400);
-        }
-        const [day, month, year] = childData.dob.split('-');
-        childDobDate = new Date(`${year}-${month}-${day}`);
-        if (isNaN(childDobDate.getTime())) {
-          throw new AppError(`Invalid date value for child ${i} dob.`, 400);
-        }
-      }
-
-      // Create child with parent as guardian
-      const childHashedPassword = await bcrypt.hash(childData.password, 10);
-      
-      const child = await prisma.user.create({
-        data: {
-          userId: childData.userId,
-          firstName: childData.firstName,
-          lastName: childData.lastName,
-          email: childData.email,
-          phone: childData.phone || null,
-          dob: childDobDate,
-          gender: childData.gender || null,
-          details: childData.details || null,
-          specialNeeds: childData.specialNeeds === true || childData.specialNeeds === false ? childData.specialNeeds : false,
-          password: parentHashedPassword,
-          role: 'Student',
-          specialization: childData.specialization || [],
-          guardianId: parent.id, // Link to parent
-          photoPath: childData.photoPath || null,
-          isActive: true,
-          createdBy: null,
-          updatedBy: null,
-        },
-      });
-
-      registeredUsers.push(child);
-    }
-
-    // Generate JWT token for parent (primary user who logs in)
-    const token = jwt.sign(
-      { id: parent.id, email: parent.email, role: parent.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
-
-    setAuthCookie(res, parent, token);
-
-    return { users: registeredUsers, primaryUser: parent };
-  }
+  return { users: registeredUsers, primaryUser };
 };
 
 // Login user
@@ -278,11 +190,11 @@ export const loginUser = async (email, password, req, res) => {
     throw new AppError('User not found', 404);
   }
 
-  if(user.guardianId) {
+  if (user.guardianId) {
     throw new AppError('Please login using guardian account', 403);
   }
 
-  const isValidPassword = await bcrypt.compare(password, user.password);
+  const isValidPassword = await comparePassword(password, user.password);
 
   if (!isValidPassword) {
     throw new AppError('Invalid credentials', 401);
@@ -303,10 +215,9 @@ export const loginUser = async (email, password, req, res) => {
   return user;
 };
 
-// Create user by admin (explicit role)
+// Create user by admin - CREATES STAFF ONLY
 export const adminCreateUser = async (userData, req, res) => {
   const {
-    userId,
     firstName,
     lastName,
     email,
@@ -317,50 +228,38 @@ export const adminCreateUser = async (userData, req, res) => {
     specialNeeds,
     password,
     specialization = [],
-    guardianId = null,
     photoPath = null,
     isActive = true,
     createdBy = req.user.id,
     updatedBy = req.user.id,
-    role,
   } = userData;
 
   // Validate required fields
-  if (!userId || !firstName || !lastName || !email || !password || !role) {
-    throw new AppError(
-      'Required fields are missing: userId, firstName, lastName, email, password, role', 
-      400
-    );
-  }
-
-  const validRoles = ['Admin', 'Staff', 'Student', 'Parent'];
-  if (!validRoles.includes(role)) {
-    throw new AppError(`Invalid role. Must be one of: ${validRoles.join(', ')}`, 400);
-  }
+  validateRequiredFields(userData, [
+    'firstName',
+    'lastName',
+    'email',
+    'password',
+  ]);
 
   // Check if email already exists
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
-    throw new AppError('Email already exists', 409);
-  }
+  await checkEmailExists(email);
 
+  // Parse DOB if provided
   let dobDate = null;
   if (dob) {
-    if (!/^\d{2}-\d{2}-\d{4}$/.test(dob)) {
-      throw new AppError('Invalid date format. Use dd-MM-YYYY for dob.', 400);
-    }
-    const [day, month, year] = dob.split('-');
-    dobDate = new Date(`${year}-${month}-${day}`);
-    if (isNaN(dobDate.getTime())) {
-      throw new AppError('Invalid date value for dob.', 400);
-    }
+    dobDate = parseDate(dob, 'dob');
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  // Generate userId automatically
+  const generatedUserId = await generateNextUserId(prisma);
 
+  const hashedPassword = await hashPassword(password);
+
+  // ALWAYS create as Staff
   const newUser = await prisma.user.create({
     data: {
-      userId,
+      userId: generatedUserId,
       firstName,
       lastName,
       email,
@@ -370,9 +269,9 @@ export const adminCreateUser = async (userData, req, res) => {
       details,
       specialNeeds: specialNeeds === true || specialNeeds === false ? specialNeeds : false,
       password: hashedPassword,
-      role: role, // Use the string role directly
+      role: 'Staff', // Hardcoded as Staff
       specialization,
-      guardianId: guardianId || null,
+      guardianId: null, // Staff has no guardian
       photoPath,
       isActive,
       createdBy,
@@ -381,6 +280,177 @@ export const adminCreateUser = async (userData, req, res) => {
   });
 
   return newUser;
+};
+
+// Create Dependents - Admin creates Parent+Children OR Parent adds Children
+export const createDependents = async (usersData, req, res) => {
+  // Validate input is an array with at least one user
+  validateArrayInput(usersData, 1, 'Invalid data. Expected at least one user.');
+
+  const createdUsers = [];
+  let primaryUser = null;
+  let parentId = null;
+
+  const isAdmin = req.user.role === 'Admin';
+  const isParent = req.user.role === 'Parent';
+
+  // CASE 1: Parent adding children
+  if (isParent) {
+    // Parent can only add children, not create another parent
+    // All users in array should be children
+    
+    parentId = req.user.id; // Use logged-in parent's ID
+
+    for (let i = 0; i < usersData.length; i++) {
+      const childData = usersData[i];
+      
+      // Validate child required fields
+      validateRequiredFields(
+        childData,
+        ['firstName', 'lastName', 'email', 'password'],
+        `Child ${i + 1}`
+      );
+
+      // Check if email already exists
+      await checkEmailExists(
+        childData.email,
+        `Email already exists for child ${i + 1}: ${childData.email}`
+      );
+
+      // Parse child DOB if provided
+      let childDobDate = null;
+      if (childData.dob) {
+        childDobDate = parseDate(childData.dob, `child ${i + 1} dob`);
+      }
+
+      // Generate userId automatically
+      const generatedUserId = await generateNextUserId(prisma);
+
+      // Hash password
+      const hashedPassword = await hashPassword(childData.password);
+
+      // Create child linked to logged-in parent
+      const child = await prisma.user.create({
+        data: buildUserData(
+          { ...childData, dob: childDobDate },
+          'Student',
+          parentId, // Link to logged-in parent
+          hashedPassword,
+          generatedUserId,
+          req.user.id, // createdBy
+          req.user.id  // updatedBy
+        ),
+      });
+
+      createdUsers.push(child);
+    }
+
+    return { 
+      users: createdUsers, 
+      primaryUser: null, // No primary user for parent adding children
+      totalUsersCreated: createdUsers.length 
+    };
+  }
+
+  // CASE 2: Admin creating Parent + Children
+  if (isAdmin) {
+    // Must have at least 2 users (parent + at least 1 child)
+    if (usersData.length < 2) {
+      throw new AppError('Admin must provide at least one parent and one child (minimum 2 users)', 400);
+    }
+
+    const parentData = usersData[0]; // First element is parent
+    
+    // Validate parent required fields
+    validateRequiredFields(
+      parentData,
+      ['firstName', 'lastName', 'email', 'password'],
+      'Parent'
+    );
+
+    // Check if parent already exists
+    await checkEmailExists(parentData.email, 'Parent account already exists.');
+
+    // Parse parent DOB if provided
+    let parentDobDate = null;
+    if (parentData.dob) {
+      parentDobDate = parseDate(parentData.dob, 'parent dob');
+    }
+
+    // Generate userId for parent
+    const parentUserId = await generateNextUserId(prisma);
+
+    // Hash parent password
+    const parentHashedPassword = await hashPassword(parentData.password);
+
+    // Create parent
+    const parent = await prisma.user.create({
+      data: buildUserData(
+        { ...parentData, dob: parentDobDate },
+        'Parent',
+        null, // No guardian for parent
+        parentHashedPassword,
+        parentUserId,
+        req.user.id, // createdBy (admin)
+        req.user.id  // updatedBy (admin)
+      ),
+    });
+
+    createdUsers.push(parent);
+    primaryUser = parent;
+    parentId = parent.id;
+
+    // Create children (remaining elements in array)
+    for (let i = 1; i < usersData.length; i++) {
+      const childData = usersData[i];
+      
+      // Validate child required fields
+      validateRequiredFields(
+        childData,
+        ['firstName', 'lastName', 'email', 'password'],
+        `Child ${i}`
+      );
+
+      // Check if child email already exists
+      await checkEmailExists(
+        childData.email,
+        `Email already exists for child ${i}: ${childData.email}`
+      );
+
+      // Parse child DOB if provided
+      let childDobDate = null;
+      if (childData.dob) {
+        childDobDate = parseDate(childData.dob, `child ${i} dob`);
+      }
+
+      // Generate userId for child
+      const childUserId = await generateNextUserId(prisma);
+
+      // Hash child password
+      const childHashedPassword = await hashPassword(childData.password);
+
+      // Create child linked to parent
+      const child = await prisma.user.create({
+        data: buildUserData(
+          { ...childData, dob: childDobDate },
+          'Student',
+          parentId, // Link to parent
+          childHashedPassword,
+          childUserId,
+          req.user.id, // createdBy (admin)
+          req.user.id  // updatedBy (admin)
+        ),
+      });
+
+      createdUsers.push(child);
+    }
+
+    return { 
+      users: createdUsers, 
+      primaryUser, 
+      totalUsersCreated: createdUsers.length 
+    };
+  }
 };
 
 // Get all users
@@ -461,11 +531,16 @@ export const updateUser = async (id, updateData) => {
     throw new AppError('Email cannot be changed', 400);
   }
 
-  const { password, email, ...rest } = updateData; 
+  // Prevent userId updates
+  if (updateData.userId) {
+    throw new AppError('User ID cannot be changed', 400);
+  }
+
+  const { password, email, userId, ...rest } = updateData;
 
   let hashedPassword;
   if (password) {
-    hashedPassword = await bcrypt.hash(password, 10);
+    hashedPassword = await hashPassword(password);
   }
 
   return await prisma.user.update({
@@ -473,11 +548,10 @@ export const updateUser = async (id, updateData) => {
     data: {
       ...rest,
       ...(hashedPassword && { password: hashedPassword }),
-      // email is intentionally excluded
+      // email and userId are intentionally excluded
     },
   });
 };
-
 
 // Deactivate user (Admin only)
 export const deactivateUser = async (id) => {

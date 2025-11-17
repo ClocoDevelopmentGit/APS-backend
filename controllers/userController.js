@@ -8,6 +8,7 @@ import {
   updateUser,
   deactivateUser,
   clearAuthCookie,
+  createDependents,
 } from '../services/userService.js';
 import { PrismaClient } from '@prisma/client';
 
@@ -48,14 +49,14 @@ export const registerController = async (req, res, next) => {
   }
 };
 
-// Admin Create User Controller
+// Admin Create User Controller - Creates Staff only
 export const adminCreateUserController = async (req, res, next) => {
   try {
     const user = await createUserService(req.body, req, res);
     
     res.status(201).json({
       success: true,
-      message: 'User created successfully by admin.',
+      message: 'Staff user created successfully by admin.',
       user: {
         id: user.id,
         userId: user.userId,
@@ -68,6 +69,43 @@ export const adminCreateUserController = async (req, res, next) => {
         createdBy: user.createdBy,
         updatedBy: user.updatedBy,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Create Dependents Controller - Admin creates Parent+Children, Parent adds Children
+export const createDependentsController = async (req, res, next) => {
+  try {
+    const { users, primaryUser, totalUsersCreated } = await createDependents(req.body, req, res);
+    
+    res.status(201).json({
+      success: true,
+      message: req.user.role === 'Admin' 
+        ? 'Parent and children created successfully.'
+        : 'Children added successfully.',
+      primaryUser: primaryUser ? {
+        id: primaryUser.id,
+        userId: primaryUser.userId,
+        firstName: primaryUser.firstName,
+        lastName: primaryUser.lastName,
+        email: primaryUser.email,
+        role: primaryUser.role,
+        guardianId: primaryUser.guardianId,
+        isActive: primaryUser.isActive,
+      } : null,
+      totalUsersCreated,
+      users: users.map(user => ({
+        id: user.id,
+        userId: user.userId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        guardianId: user.guardianId,
+        isActive: user.isActive,
+      })),
     });
   } catch (error) {
     next(error);

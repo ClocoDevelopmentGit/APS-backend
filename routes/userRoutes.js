@@ -8,9 +8,10 @@ import {
   updateUserProfileController,
   deactivateUserProfileController,
   adminCreateUserController,
+  createDependentsController,
   logoutController
 } from '../controllers/userController.js';
-import { authenticateToken, authorizeAdmin } from '../middlewares/authMiddleware.js';
+import { authenticateToken, authorizeAdmin, authorizeAdminOrParent } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
@@ -25,5 +26,8 @@ router.get('/', authenticateToken, authorizeAdmin, getAllUsersController);
 router.get('/:id', authenticateToken, authorizeAdmin, getParticularUserController);
 router.put('/:id', authenticateToken, authorizeAdmin, updateUserProfileController);
 router.patch('/:id/deactivate', authenticateToken, authorizeAdmin, deactivateUserProfileController); 
+
+// Admin or Parent routes
+router.post('/dependents', authenticateToken, authorizeAdminOrParent, createDependentsController);
 
 export default router;

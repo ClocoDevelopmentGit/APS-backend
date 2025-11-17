@@ -50,3 +50,11 @@ export const authorizeAdmin = (req, res, next) => {
   }
   next();
 };
+
+// Admin or Parent can access
+export const authorizeAdminOrParent = (req, res, next) => {
+  if (req.user.role !== 'Admin' && req.user.role !== 'Parent') {
+    return res.status(403).json({ message: 'Forbidden: Admin or Parent access required.' });
+  }
+  next();
+};
