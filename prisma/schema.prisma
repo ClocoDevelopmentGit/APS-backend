@@ -243,6 +243,17 @@ model Banner {
   updatedBy       String?  @db.VarChar(255)
 }
 
+model GoogleReview {
+  id            String   @id @default(uuid())
+  reviewerName  String   @db.VarChar(255)
+  reviewText    String?  @db.Text
+  reviewDate    DateTime @db.Date
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String?  @db.VarChar(255)
+  updatedBy     String?  @db.VarChar(255)
+}
+
 enum Gender {
   Male
   Female
