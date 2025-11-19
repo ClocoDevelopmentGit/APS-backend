@@ -159,3 +159,55 @@ export const generateNextUserId = async (prisma) => {
 
   return nextUserId;
 };
+
+export const checkEmailExists = async (prisma, email, errorMessage = 'Email already exists') => {
+  const existingUser = await prisma.user.findFirst({ 
+    where: { email } 
+  });
+  if (existingUser) {
+    throw new AppError(errorMessage, 409);
+  }
+};
+
+// Check if child already exists by firstName, lastName, and DOB
+export const checkChildExists = async (prisma, firstName, lastName, dob, guardianId, userContext) => {
+  const existingChild = await prisma.user.findFirst({
+    where: {
+      firstName,
+      lastName,
+      dob,
+      guardianId,
+      role: 'Student',
+    },
+  });
+
+  if (existingChild) {
+    throw new AppError(
+      `${userContext} with name "${firstName} ${lastName}" and DOB "${dob.toISOString().split('T')[0]}" already exists under this guardian.`,
+      409
+    );
+  }
+};
+
+// Helper to create user data object
+export const buildUserData = (userData, role, guardianId, hashedPassword, generatedUserId, createdBy = null, updatedBy = null) => ({
+  userId: generatedUserId,
+  firstName: userData.firstName,
+  lastName: userData.lastName,
+  email: userData.email,
+  phone: userData.phone || null,
+  dob: userData.dob || null,
+  gender: userData.gender || null,
+  details: userData.details || null,
+  specialNeeds: userData.specialNeeds === true || userData.specialNeeds === false 
+    ? userData.specialNeeds 
+    : false,
+  password: hashedPassword,
+  role,
+  specialization: userData.specialization || [],
+  guardianId,
+  photoPath: userData.photoPath || null,
+  isActive: true,
+  createdBy,
+  updatedBy,
+});

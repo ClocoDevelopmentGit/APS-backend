@@ -18,11 +18,6 @@ export const authenticateToken = async (req, res, next) => {
   }
 
   if (!token) {
-    const authHeader = req.headers['authorization'];
-    token = authHeader && authHeader.split(' ')[1];
-  }
-
-  if (!token) {
     return res.status(401).json({ message: 'No token provided.' });
   }
 
@@ -52,9 +47,9 @@ export const authorizeAdmin = (req, res, next) => {
 };
 
 // Admin or Parent can access
-export const authorizeAdminOrParent = (req, res, next) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'Parent') {
-    return res.status(403).json({ message: 'Forbidden: Admin or Parent access required.' });
+export const authorizeParent = (req, res, next) => {
+  if ( req.user.role !== 'Parent') {
+    return res.status(403).json({ message: 'Forbidden:  Parent access required.' });
   }
   next();
 };
