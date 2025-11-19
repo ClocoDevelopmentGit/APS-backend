@@ -27,6 +27,7 @@ export const loginController = async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };
@@ -41,6 +42,7 @@ export const logoutController = async (req, res, next) => {
       message: 'Logged out successfully.',
     });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };

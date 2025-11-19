@@ -54,14 +54,14 @@ export const loginUser = async (email, password, req, res) => {
     throw new AppError('Please login using guardian account', 403);
   }
 
+   if (!user.isActive) {
+    throw new AppError('User account is deactivated. Please contact support.', 403);
+  }
+
   const isValidPassword = await comparePassword(password, user.password);
 
   if (!isValidPassword) {
     throw new AppError('Invalid credentials', 401);
-  }
-
-  if (!user.isActive) {
-    throw new AppError('User account is deactivated. Please contact support.', 403);
   }
 
   const token = jwt.sign(

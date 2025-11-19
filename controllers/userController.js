@@ -8,8 +8,8 @@ import {
   deactivateUser,
   createParentAndChildrenByAdmin,
   addOrUpdateChildren,
+  createAdultStudentsByAdmin,
 } from '../services/userService.js';
-import { PrismaClient } from '@prisma/client';
 
 
 // Register Controller - Handles both parent-child and adult student registration
@@ -43,6 +43,7 @@ export const registerController = async (req, res, next) => {
       })),
     });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };
@@ -69,6 +70,7 @@ export const createStaffUserController = async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };
@@ -103,6 +105,7 @@ export const createParentAndChildrenController = async (req, res, next) => {
       })),
     });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };
@@ -128,36 +131,38 @@ export const addOrUpdateChildrenController = async (req, res, next) => {
       })),
     });
   } catch (error) {
+    console.log(error)
+    console.log(error)
     next(error);
   }
 };
 
-// Login Controller
-// export const loginController = async (req, res, next) => {
-//   try {
-//     const { email, password } = req.body;
-//     const user = await loginUserService(email, password, req, res);
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Login successful.',
-//       user: {
-//         id: user.id,
-//         userId: user.userId,
-//         firstName: user.firstName,
-//         lastName: user.lastName,
-//         email: user.email,
-//         role: user.role,
-//         guardianId: user.guardianId,
-//         isActive: user.isActive,
-//         createdBy: user.createdBy || null,
-//         updatedBy: user.updatedBy || null,
-//       },
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
+export const createAdultStudentsController = async (req, res, next) => {
+  try {
+    const { students, totalStudentsCreated } = await createAdultStudentsByAdmin(req.body, req);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Adult students created successfully by admin.',
+      totalStudentsCreated,
+      students: students.map(student => ({
+        id: student.id,
+        userId: student.userId,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        email: student.email,
+        role: student.role,
+        guardianId: student.guardianId,
+        isActive: student.isActive,
+        createdBy: student.createdBy,
+        updatedBy: student.updatedBy,
+      })),
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
 
 // Get All Users Controller
 export const getAllUsersController = async (req, res, next) => {
@@ -170,6 +175,7 @@ export const getAllUsersController = async (req, res, next) => {
       users: users,
     });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };
@@ -185,6 +191,7 @@ export const getParticularUserController = async (req, res, next) => {
       user: user,
     });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };
@@ -201,6 +208,7 @@ export const updateUserProfileController = async (req, res, next) => {
       user: updatedUser,
     });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };
@@ -216,20 +224,7 @@ export const deactivateUserProfileController = async (req, res, next) => {
       message: 'User deactivated successfully.',
     });
   } catch (error) {
+    console.log(error)
     next(error);
   }
 };
-
-// Logout Controller
-// export const logoutController = async (req, res, next) => {
-//   try {
-//     await clearAuthCookie(res, prisma, req.user.id);
-    
-//     res.status(200).json({
-//       success: true,
-//       message: 'Logged out successfully.',
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };

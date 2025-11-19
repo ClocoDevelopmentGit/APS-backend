@@ -356,6 +356,71 @@ export const addOrUpdateChildren = async (childrenData, req) => {
   };
 };
 
+export const createAdultStudentsByAdmin = async (studentsData, req) => {
+  // Validate input is an array with at least 1 student
+  validateArrayInput(studentsData, 1, 'Invalid data. Expected at least one student.');
+
+  const createdStudents = [];
+
+  // Process each student in the array
+  for (let i = 0; i < studentsData.length; i++) {
+    const studentData = studentsData[i];
+    const userContext = `Student ${i + 1}`;
+    
+    // Required fields for adult students
+    const requiredFields = ['firstName', 'lastName', 'email', 'password', 'dob'];
+    
+    // Validate required fields
+    validateRequiredFields(studentData, requiredFields, userContext);
+
+    // Check if email already exists
+    await checkEmailExists(
+      prisma,
+      studentData.email,
+      `${userContext}: Email already exists: ${studentData.email}`
+    );
+
+    // Parse and validate DOB
+    const dobFieldName = `${userContext.toLowerCase()} dob`;
+    const dobDate = parseDate(studentData.dob, dobFieldName);
+    
+    // Validate age is 18 or above
+    const age = calculateAge(dobDate);
+    if (age < 18) {
+      throw new AppError(
+        `${userContext} must be 18 years or older. Age calculated: ${age} years. Students under 18 need a guardian.`,
+        400
+      );
+    }
+
+    // Generate userId automatically
+    const generatedUserId = await generateNextUserId(prisma);
+
+    // Hash password
+    const hashedPassword = await hashPassword(studentData.password);
+
+    // Create adult student with no guardian
+    const newStudent = await prisma.user.create({
+      data: buildUserData(
+        { ...studentData, dob: dobDate },
+        'Student',
+        null, // No guardianId - independent student
+        hashedPassword,
+        generatedUserId,
+        req.user.id, // createdBy (admin)
+        req.user.id  // updatedBy (admin)
+      ),
+    });
+
+    createdStudents.push(newStudent);
+  }
+
+  return { 
+    students: createdStudents,
+    totalStudentsCreated: createdStudents.length 
+  };
+};
+
 // Login user
 export const loginUser = async (email, password, req, res) => {
   // Validate required fields
