@@ -4,12 +4,20 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import bannerRoutes from "./routes/bannerRoute.js";
 import testimonialRoutes from "./routes/testimonialRoute.js";
+// import instagramRoutes from "./routes/instagramRoute.js";
+import categoryRoutes from "./routes/categoryRoute.js";
 import "./cron/testimonialCron.js";
 const app = express();
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:3000"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "https://aps-frontend-11757167141.us-central1.run.app",
+      "https://apsdev.cloco.com.au",
+      "https://apsuat.cloco.com.au",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -21,5 +29,7 @@ app.use(bodyParser.json());
 
 app.use("/api/banner", bannerRoutes);
 app.use("/api/testimonial", testimonialRoutes);
+// app.use("/api/instagram", instagramRoutes);
+app.use("/api/category", categoryRoutes);
 
 export default app;
