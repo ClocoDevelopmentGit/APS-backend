@@ -90,6 +90,14 @@ export const updateCategory = async (id, data) => {
       };
     }
 
+    const categoryExists = await prisma.courseCategory.findUnique({
+      where: { id },
+    });
+
+    if (!categoryExists) {
+      return { success: false, message: "Category not found" };
+    }
+
     const categoryNameCheck = await prisma.courseCategory.findFirst({
       where: {
         name: {
