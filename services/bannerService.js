@@ -40,6 +40,7 @@ export const createBanner = async (data) => {
 
     return { success: true, banner };
   } catch (error) {
+    console.error("Error creating banner:", error);
     return { success: false, message: "Failed to create banner", error };
   }
 };
@@ -53,6 +54,7 @@ export const getAllBanners = async () => {
 
     return { success: true, banner };
   } catch (error) {
+    console.error("Error fetching banners:", error);
     return { success: false, message: "Failed to fetch banners", error };
   }
 };
@@ -70,6 +72,7 @@ export const getBannerById = async (id) => {
 
     return { success: true, banner };
   } catch (error) {
+    console.error("Error fetching banner:", error);
     return { success: false, message: "Failed to fetch banner", error };
   }
 };
@@ -118,6 +121,7 @@ export const updateBanner = async (id, data) => {
 
     return { success: true, banner };
   } catch (error) {
+    console.error("Error updating banner:", error);
     return { success: false, message: "Failed to update banner", error };
   }
 };
@@ -136,6 +140,7 @@ export const deleteBanner = async (id) => {
     await prisma.banner.delete({ where: { id } });
     return { success: true, message: "Banner deleted successfully" };
   } catch (error) {
+    console.error("Error deleting banner:", error);
     return { success: false, message: "Failed to delete banner".error };
   }
 };
