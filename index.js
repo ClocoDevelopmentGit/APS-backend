@@ -6,6 +6,7 @@ import bannerRoutes from "./routes/bannerRoute.js";
 import testimonialRoutes from "./routes/testimonialRoute.js";
 // import instagramRoutes from "./routes/instagramRoute.js";
 import categoryRoutes from "./routes/categoryRoute.js";
+import courseRoutes from "./routes/courseRoute.js";
 import userRoutes from "./routes/userRoutes.js";
 import loginRoutes from "./routes/loginRoutes.js";
 import { errorHandler } from "./middlewares/errorMiddleware.js";
@@ -33,9 +34,10 @@ app.use(errorHandler);
 
 app.use("/api/banner", bannerRoutes);
 app.use("/api/testimonial", testimonialRoutes);
-app.use("/api/users", userRoutes)
+app.use("/api/users", userRoutes);
 app.use("/api/users", loginRoutes);
 // app.use("/api/instagram", instagramRoutes);
 app.use("/api/category", categoryRoutes);
+app.use("/api/course", courseRoutes);
 
 export default app;
