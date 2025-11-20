@@ -46,8 +46,8 @@ export const syncGooglePlaceReviews = async () => {
           createdBy: "system",
         })) || [];
 
-    await prisma.googleReview.deleteMany({});
     if (formattedReviews.length > 0) {
+      await prisma.googleReview.deleteMany({});
       await prisma.googleReview.createMany({ data: formattedReviews });
     }
 
@@ -68,6 +68,7 @@ export const getGoogleReviewsFromDB = async () => {
         reviewDate: true,
       },
     });
+    console.log(reviews);
     return reviews;
   } catch (error) {
     console.error("Error fetching Google reviews from DB:", error.message);
