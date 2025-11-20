@@ -6,6 +6,9 @@ import bannerRoutes from "./routes/bannerRoute.js";
 import testimonialRoutes from "./routes/testimonialRoute.js";
 // import instagramRoutes from "./routes/instagramRoute.js";
 import categoryRoutes from "./routes/categoryRoute.js";
+import userRoutes from "./routes/userRoutes.js";
+import loginRoutes from "./routes/loginRoutes.js";
+import { errorHandler } from "./middlewares/errorMiddleware.js";
 import "./cron/testimonialCron.js";
 const app = express();
 
@@ -26,9 +29,12 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 app.use(bodyParser.json());
+app.use(errorHandler);
 
 app.use("/api/banner", bannerRoutes);
 app.use("/api/testimonial", testimonialRoutes);
+app.use("/api/users", userRoutes)
+app.use("/api/users", loginRoutes);
 // app.use("/api/instagram", instagramRoutes);
 app.use("/api/category", categoryRoutes);
 
