@@ -276,6 +276,10 @@ export const addOrUpdateChildren = async (childrenData, req) => {
         throw new AppError(`${userContext}: User ID cannot be changed`, 400);
       }
 
+      if(childData.dob) {
+        throw new AppError(`${userContext}: DOB cannot be changed`, 400);
+      }
+
       // Handle password update if provided
       let hashedPassword;
       if (childData.password) {
@@ -324,7 +328,6 @@ export const addOrUpdateChildren = async (childrenData, req) => {
         where: { id: childData.id },
         data: {
           ...updateFields,
-          dob: dobDate,
           ...(hashedPassword && { password: hashedPassword }),
           updatedBy: req.user.id,
         },

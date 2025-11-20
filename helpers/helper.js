@@ -199,7 +199,7 @@ export const buildUserData = (userData, role, guardianId, hashedPassword, genera
   dob: userData.dob || null,
   gender: userData.gender || null,
   details: userData.details || null,
-  specialNeeds: userData.specialNeeds === true || userData.specialNeeds === false 
+  specialNeeds: userData.specialNeeds 
     ? userData.specialNeeds 
     : false,
   password: hashedPassword,
