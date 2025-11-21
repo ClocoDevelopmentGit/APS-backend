@@ -10,6 +10,8 @@ import userRoutes from "./routes/userRoutes.js";
 import loginRoutes from "./routes/loginRoutes.js";
 import { errorHandler } from "./middlewares/errorMiddleware.js";
 import "./cron/testimonialCron.js";
+import locationRoutes from "./routes/locationRoute.js";
+import eventRoutes from "./routes/eventRoute.js";
 const app = express();
 
 app.use(
@@ -37,5 +39,7 @@ app.use("/api/users", userRoutes)
 app.use("/api/users", loginRoutes);
 // app.use("/api/instagram", instagramRoutes);
 app.use("/api/category", categoryRoutes);
+app.use("/api/location", locationRoutes);
+app.use("/api/event", eventRoutes);
 
 export default app;

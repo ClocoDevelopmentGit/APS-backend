@@ -72,6 +72,7 @@ model CourseCategory {
 
   // Relations
   courses Course[]
+  events  Event[] 
 
   @@index([isActive])
 }
@@ -164,10 +165,14 @@ model Fee {
 // ============================================
 model Event {
   id             String   @id @default(uuid())
-  locationId     String   // made NON-NULLABLE and removed default
+  locationId     String
+  categoryId     String   
   title          String   @db.VarChar(255)
   description    String?  @db.Text
-  canEnroll      Boolean  @default(false) // default changed to false
+  mediaUrl       String   
+  mediaType      String   
+  link           String  @db.VarChar(255)
+  canEnroll      Boolean  @default(false)
   startDate      DateTime @db.Date
   endDate        DateTime @db.Date
   startTime      DateTime @db.Time
@@ -184,9 +189,11 @@ model Event {
   fees           Float
 
   // Relations
-  location Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  location Location       @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  category CourseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict) 
 
   @@index([locationId])
+  @@index([categoryId]) 
   @@index([canEnroll])
   @@index([startDate])
   @@index([endDate])
