@@ -14,11 +14,17 @@ export const createCourse = async (data) => {
       createdBy,
     } = data;
 
-    if (!title || !courseCategoryId || !mediaUrl || !mediaType) {
-      return {
-        success: false,
-        message: "Title, courseCategoryId, mediaUrl, mediaType is required",
-      };
+    const requiredFields = {
+      title,
+      courseCategoryId,
+      mediaUrl,
+      mediaType,
+    };
+
+    for (const key in requiredFields) {
+      if (!requiredFields[key]) {
+        return { success: false, message: `${key} is required` };
+      }
     }
 
     const course = await prisma.course.create({
@@ -32,6 +38,10 @@ export const createCourse = async (data) => {
         isActive,
         createdBy,
       },
+      include: {
+        courseCategory: true,
+        classes: true,
+      },
     });
 
     return { success: true, course };
@@ -41,19 +51,46 @@ export const createCourse = async (data) => {
   }
 };
 
-export const getAllCourses = async () => {
+export const getAllCourses = async (filters = {}) => {
   try {
+    const { title, courseCategoryId, isActive, ageRange, location } = filters;
+
     const course = await prisma.course.findMany({
       orderBy: { createdAt: "asc" },
+      where: {
+        name: title ? { contains: title, mode: "insensitive" } : undefined,
+        courseCategoryId: courseCategoryId || undefined,
+        isActive: typeof isActive === "boolean" ? isActive : undefined,
+        ageRange: ageRange || undefined,
+        classes: location
+          ? {
+              some: {
+                location: {
+                  contains: location,
+                  mode: "insensitive",
+                },
+              },
+            }
+          : undefined,
+      },
+      include: {
+        courseCategory: true,
+        classes: true,
+      },
     });
+
     if (!course || course.length === 0) {
       return { success: false, message: "No courses found" };
     }
 
     return { success: true, course };
   } catch (error) {
-    console.error("Error fetching categories:", error);
-    return { success: false, message: "Failed to fetch courses", error };
+    console.error("Error fetching courses:", error);
+    return {
+      success: false,
+      message: "Failed to fetch courses",
+      error,
+    };
   }
 };
 
@@ -63,7 +100,13 @@ export const getCourseById = async (id) => {
       return { success: false, message: "id is required" };
     }
 
-    const course = await prisma.course.findUnique({ where: { id } });
+    const course = await prisma.course.findUnique({
+      where: { id },
+      include: {
+        courseCategory: true,
+        classes: true,
+      },
+    });
     if (!course) {
       return { success: false, message: "Course not found" };
     }
@@ -92,11 +135,17 @@ export const updateCourse = async (id, data) => {
       createdBy,
     } = data;
 
-    if (!title || !courseCategoryId || !mediaUrl || !mediaType) {
-      return {
-        success: false,
-        message: "Title, courseCategoryId, mediaUrl, mediaType is required",
-      };
+    const requiredFields = {
+      title,
+      courseCategoryId,
+      mediaUrl,
+      mediaType,
+    };
+
+    for (const key in requiredFields) {
+      if (!requiredFields[key]) {
+        return { success: false, message: `${key} is required` };
+      }
     }
 
     const courseExists = await prisma.course.findUnique({
@@ -118,6 +167,10 @@ export const updateCourse = async (id, data) => {
         description,
         isActive,
         createdBy,
+      },
+      include: {
+        courseCategory: true,
+        classes: true,
       },
     });
 

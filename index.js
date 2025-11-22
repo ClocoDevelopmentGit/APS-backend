@@ -11,6 +11,7 @@ import userRoutes from "./routes/userRoutes.js";
 import loginRoutes from "./routes/loginRoutes.js";
 import { errorHandler } from "./middlewares/errorMiddleware.js";
 import "./cron/testimonialCron.js";
+import classRoutes from "./routes/classRoute.js";
 const app = express();
 
 app.use(
@@ -39,5 +40,6 @@ app.use("/api/users", loginRoutes);
 // app.use("/api/instagram", instagramRoutes);
 app.use("/api/category", categoryRoutes);
 app.use("/api/course", courseRoutes);
+app.use("/api/class", classRoutes);
 
 export default app;

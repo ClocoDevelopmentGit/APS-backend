@@ -14,7 +14,7 @@ export const createCourseController = async (req, res) => {
 
     if (req.file) {
       const filename = req.file.originalname;
-      logoPath = `courses/${filename}`;
+      logoPath = `courses/${req.body.title}/${filename}`;
       const gcsFile = bucket.file(logoPath);
 
       await gcsFile.save(req.file.buffer, {
@@ -66,7 +66,7 @@ export const updateCourseController = async (req, res) => {
 
     if (req.file) {
       const filename = req.file.originalname;
-      logoPath = `courses/${filename}`;
+      logoPath = `courses/${req.body.title}/${filename}`;
       const gcsFile = bucket.file(logoPath);
 
       await gcsFile.save(req.file.buffer, {

@@ -32,6 +32,10 @@ export const createCategory = async (data) => {
         isActive,
         createdBy,
       },
+      include: {
+        courses: true,
+        events: true,
+      },
     });
 
     return { success: true, category };
@@ -45,6 +49,10 @@ export const getAllCategories = async () => {
   try {
     const category = await prisma.courseCategory.findMany({
       orderBy: { createdAt: "asc" },
+      include: {
+        courses: true,
+        events: true,
+      },
     });
     if (!category || category.length === 0) {
       return { success: false, message: "No categorys found" };
@@ -63,7 +71,13 @@ export const getCategoryById = async (id) => {
       return { success: false, message: "id is required" };
     }
 
-    const category = await prisma.courseCategory.findUnique({ where: { id } });
+    const category = await prisma.courseCategory.findUnique({
+      where: { id },
+      include: {
+        courses: true,
+        events: true,
+      },
+    });
     if (!category) {
       return { success: false, message: "Category not found" };
     }
@@ -118,6 +132,10 @@ export const updateCategory = async (id, data) => {
         description,
         isActive,
         updatedBy,
+      },
+      include: {
+        courses: true,
+        events: true,
       },
     });
 

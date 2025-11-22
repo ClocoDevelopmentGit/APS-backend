@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@google-cloud/storage": "^7.17.3",
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "^7.0.0",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
@@ -34,6 +34,6 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "nodemon": "^3.1.10",
-    "prisma": "^6.19.0"
+    "prisma": "^7.0.0"
   }
 }

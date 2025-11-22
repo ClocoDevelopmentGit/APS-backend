@@ -16,11 +16,16 @@ export const createBanner = async (data) => {
       order,
     } = data;
 
-    if (!title || !mediaType || !mediaUrl) {
-      return {
-        success: false,
-        message: "title, mediaType, and mediaUrl are required",
-      };
+    const requiredFields = {
+      title,
+      mediaUrl,
+      mediaType,
+    };
+
+    for (const key in requiredFields) {
+      if (!requiredFields[key]) {
+        return { success: false, message: `${key} is required` };
+      }
     }
 
     const banner = await prisma.banner.create({
@@ -96,11 +101,16 @@ export const updateBanner = async (id, data) => {
       order,
     } = data;
 
-    if (!title || !mediaType || !mediaUrl) {
-      return {
-        success: false,
-        message: "title, mediaType, and mediaUrl are required",
-      };
+    const requiredFields = {
+      title,
+      mediaUrl,
+      mediaType,
+    };
+
+    for (const key in requiredFields) {
+      if (!requiredFields[key]) {
+        return { success: false, message: `${key} is required` };
+      }
     }
 
     const banner = await prisma.banner.update({
